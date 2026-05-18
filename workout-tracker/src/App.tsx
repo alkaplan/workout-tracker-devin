@@ -12,10 +12,12 @@ import {
   Plus,
   Minus,
   Calendar,
+  SkipForward,
+  ArrowRightLeft,
 } from 'lucide-react'
 import './App.css'
 
-type WorkoutPhase = 'warmup' | 'strength' | 'complete'
+type WorkoutPhase = 'select' | 'warmup' | 'strength' | 'complete'
 
 interface WarmupExercise {
   name: string
@@ -199,7 +201,7 @@ function WarmupTimer({ onComplete }: { onComplete: () => void }) {
         </span>
       </div>
 
-      <div className="flex justify-center gap-4">
+      <div className="flex justify-center gap-3">
         <button
           onClick={() => setIsRunning(!isRunning)}
           className="flex items-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-colors active:scale-95"
@@ -212,6 +214,12 @@ function WarmupTimer({ onComplete }: { onComplete: () => void }) {
           className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-4 rounded-2xl text-lg transition-colors active:scale-95"
         >
           <RotateCcw className="w-5 h-5" />
+        </button>
+        <button
+          onClick={onComplete}
+          className="flex items-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-6 py-4 rounded-2xl text-lg transition-colors active:scale-95"
+        >
+          <SkipForward className="w-5 h-5" />
         </button>
       </div>
 
@@ -473,8 +481,75 @@ function CompletionScreen({ onNewWorkout }: { onNewWorkout: () => void }) {
   )
 }
 
+function WorkoutPicker({
+  currentWorkout,
+  onSelect,
+  onStartWarmup,
+  onSkipWarmup,
+}: {
+  currentWorkout: WorkoutDay
+  onSelect: (workout: WorkoutDay) => void
+  onStartWarmup: () => void
+  onSkipWarmup: () => void
+}) {
+  return (
+    <div className="flex flex-col gap-6">
+      <div className="text-center">
+        <h2 className="text-2xl font-bold text-white mb-2">Choose Your Workout</h2>
+        <p className="text-zinc-400 text-sm">Select a workout, then warm up or jump straight in.</p>
+      </div>
+
+      <div className="flex flex-col gap-3">
+        {WORKOUT_DAYS.map((day) => (
+          <button
+            key={day.name}
+            onClick={() => onSelect(day)}
+            className={`w-full text-left p-5 rounded-2xl border transition-colors active:scale-98 ${
+              currentWorkout.name === day.name
+                ? 'bg-orange-500/10 border-orange-500/50 ring-1 ring-orange-500/30'
+                : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-lg font-bold text-white">{day.label}</span>
+              {currentWorkout.name === day.name && (
+                <Check className="w-5 h-5 text-orange-400" />
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {day.exercises.map((ex) => (
+                <span
+                  key={ex.name}
+                  className="text-xs bg-zinc-800 text-zinc-400 px-2.5 py-1 rounded-lg"
+                >
+                  {ex.name} {ex.sets}&times;{ex.reps}
+                </span>
+              ))}
+            </div>
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-col gap-3 mt-2">
+        <button
+          onClick={onStartWarmup}
+          className="flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-colors active:scale-95"
+        >
+          <Flame className="w-5 h-5" /> Start with Warm-Up
+        </button>
+        <button
+          onClick={onSkipWarmup}
+          className="flex items-center justify-center gap-2 bg-zinc-700 hover:bg-zinc-600 text-white font-semibold px-8 py-4 rounded-2xl text-lg transition-colors active:scale-95"
+        >
+          <SkipForward className="w-5 h-5" /> Skip to Lifting
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function App() {
-  const [phase, setPhase] = useState<WorkoutPhase>('warmup')
+  const [phase, setPhase] = useState<WorkoutPhase>('select')
   const [currentWorkout, setCurrentWorkout] = useState<WorkoutDay>(() => {
     const lastDay = getLastWorkoutDay()
     const nextDay = lastDay === 'A' ? 'B' : 'A'
@@ -507,7 +582,7 @@ function App() {
     const lastDay = getLastWorkoutDay()
     const nextDay = lastDay === 'A' ? 'B' : 'A'
     setCurrentWorkout(WORKOUT_DAYS.find((w) => w.name === nextDay) || WORKOUT_DAYS[0])
-    setPhase('warmup')
+    setPhase('select')
   }, [])
 
   return (
@@ -519,6 +594,11 @@ function App() {
             <h1 className="text-xl font-bold">IronLog</h1>
           </div>
           <div className="flex items-center gap-2">
+            {phase === 'select' && (
+              <span className="flex items-center gap-1.5 text-xs font-semibold bg-zinc-700/50 text-zinc-300 px-3 py-1.5 rounded-full">
+                <ArrowRightLeft className="w-3.5 h-3.5" /> Pick Workout
+              </span>
+            )}
             {phase === 'warmup' && (
               <span className="flex items-center gap-1.5 text-xs font-semibold bg-orange-500/20 text-orange-400 px-3 py-1.5 rounded-full">
                 <Flame className="w-3.5 h-3.5" /> Warm-Up
@@ -539,6 +619,14 @@ function App() {
       </header>
 
       <main className="max-w-lg mx-auto px-4 py-6">
+        {phase === 'select' && (
+          <WorkoutPicker
+            currentWorkout={currentWorkout}
+            onSelect={setCurrentWorkout}
+            onStartWarmup={() => setPhase('warmup')}
+            onSkipWarmup={() => setPhase('strength')}
+          />
+        )}
         {phase === 'warmup' && <WarmupTimer onComplete={handleWarmupComplete} />}
         {phase === 'strength' && (
           <StrengthTraining
